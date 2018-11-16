@@ -1,3 +1,5 @@
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
 export VAULT_KEY_SHARES=1
 export VAULT_KEY_THRESHOLD=1
 export VAULT_INIT_OUTPUT=vault_init.out
@@ -16,4 +18,4 @@ fi
 
 # Demo magic gives wrappers for running commands in demo mode.   Also good for learning via CLI.
 
-. demo-magic.sh -d -p -w ${DEMO_WAIT}
+. ${DIR}/demo-magic.sh -d -p -w ${DEMO_WAIT}
