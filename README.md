@@ -579,7 +579,7 @@ Steps:
 - Create secrets in Vault
    ```
 	vault kv put secret/it/operations/config \
-	ttl='30s' username='operations'\
+	ttl='30s' username='operations' \
 	password='operations-suP3rsec(et!'
 
 	vault kv put secret/it/support/config \
