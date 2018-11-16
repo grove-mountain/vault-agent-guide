@@ -153,13 +153,13 @@ pe "vault kv put secret/finance/ap-app/config \
 # Inspecting the data vault will use for login
 # Mainly to see the secret
 pe "kubectl --namespace=${NAMESPACE} get sa support -o yaml"
-echo "export SECRET_NAME=$(kubectl --namespace=${NAMESPACE} get sa support -o jsonpath=\"{.secrets[0]['name']}\")"
+echo "export SECRET_NAME=\$(kubectl --namespace=${NAMESPACE} get sa support -o jsonpath=\"{.secrets[0]['name']}\")"
 export SECRET_NAME=$(kubectl --namespace=${NAMESPACE} get sa support -o jsonpath="{.secrets[0]['name']}")
 
 # To see the secret objects associated with that service account
 pe "kubectl --namespace=${NAMESPACE} get secret ${SECRET_NAME} -o yaml"
 
-echo "export SA_JWT_TOKEN=$(kubectl --namespace=${NAMESPACE} get secret ${SECRET_NAME} -o jsonpath=\"{.data.token}\" | base64 --decode; echo)"
+echo "export SA_JWT_TOKEN=\$(kubectl --namespace=${NAMESPACE} get secret ${SECRET_NAME} -o jsonpath=\"{.data.token}\" | base64 --decode; echo)"
 export SA_JWT_TOKEN=$(kubectl --namespace=${NAMESPACE} get secret ${SECRET_NAME} -o jsonpath="{.data.token}" | base64 --decode; echo)
 
 
