@@ -553,7 +553,7 @@ Steps:
    ```
 	vault policy write finance-ar-app-read finance/ar-app-vault-policy.hcl
 	vault write auth/kubernetes/role/finance-ar-app \
-        bound_service_account_names=ar-app \
+	bound_service_account_names=ar-app \
 	bound_service_account_namespaces=finance \
 	policies=finance-ar-app-read ttl=24h
 
@@ -578,10 +578,21 @@ Steps:
 
 - Create secrets in Vault
    ```
-	vault kv put secret/it/operations/config     ttl='30s'     username='operations'     password='operations-suP3rsec(et!'
-	vault kv put secret/it/support/config     ttl='30s'     username='support'     password='support-suP3rsec(et!'
-	vault kv put secret/finance/ar-app/config     ttl='30s'     username='ar-app'     password='ar-app-suP3rsec(et!'
-	vault kv put secret/finance/ap-app/config     ttl='30s'     username='ap-app'     password='ap-app-suP3rsec(et!'
+	vault kv put secret/it/operations/config \
+	ttl='30s' username='operations'\
+	password='operations-suP3rsec(et!'
+
+	vault kv put secret/it/support/config \
+	ttl='30s' username='support' \
+	password='support-suP3rsec(et!'
+
+	vault kv put secret/finance/ar-app/config \
+	ttl='30s' username='ar-app' \
+	password='ar-app-suP3rsec(et!'
+
+	vault kv put secret/finance/ap-app/config \
+	ttl='30s' username='ap-app' \
+	password='ap-app-suP3rsec(et!'
    ```
 
 - Inspect the service account to get its secrets also grab into an environment variable for later use
