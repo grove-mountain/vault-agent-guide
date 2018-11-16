@@ -506,13 +506,17 @@ Steps:
 
 - Enable and Configure the K8s Auth Method:
 
+    Note:  K8S_HOST environment variable should point to your actual K8S Host, if running minikube the following will work, but you may need to adjust.   The lazy script is designed to work with minikube, so adjust accordingly.
+    ```
+    export K8S_HOST=$(minikube ip)
+    ```
+
     ```
     # Set Up Vault with K8s Auth backend
     # First, get env details (this is specific to Minikube)
     export VAULT_SA_NAME=$(kubectl get sa vault-auth -o jsonpath="{.secrets[*]['name']}")
     export SA_JWT_TOKEN=$(kubectl get secret $VAULT_SA_NAME -o jsonpath="{.data.token}" | base64 --decode; echo)
     export SA_CA_CRT=$(kubectl get secret $VAULT_SA_NAME -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
-    export K8S_HOST=$(minikube ip)
 
     # Enable the K8s auth method at the default path ("auth/kubernetes")
     vault auth enable kubernetes
