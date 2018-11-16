@@ -1,11 +1,11 @@
-cat >> ${NAMESPACE}/${APP}.yaml << EOL
+cat > ${NAMESPACE}/${APP}.yaml << EOL
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: vault-agent-example
+  name: vault-agent-${NAMESPACE}-${APP}
 spec:
-  serviceAccountName: operations
+  serviceAccountName: ${APP}
   restartPolicy: Never
   volumes:
     - name: vault-token
@@ -13,12 +13,12 @@ spec:
         medium: Memory
     - name: config
       configMap:
-        name: example-vault-agent-config
+        name: vault-agent-configs
         items:
-          - key: vault-agent-config.hcl
+          - key: ${NAMESPACE}-${APP}-agent-config.hcl
             path: vault-agent-config.hcl
 
-          - key: consul-template-config-kv-v1.hcl
+          - key: ${NAMESPACE}-${APP}-template-config.hcl
             path: consul-template-config.hcl
     - name: shared-data
       emptyDir: {}
@@ -45,11 +45,12 @@ spec:
         - name: LOG_LEVEL
           value: info
       # Run the Vault agent
+      command: ["/usr/local/bin/vault"]
       args:
         [
           "agent",
           "-config=/etc/vault/vault-agent-config.hcl",
-          "-log-level=\${LOG_LEVEL}",
+          "-log-level=debug",
         ]
 
     # Generic tools container but used in the context of consul template here.   
@@ -78,10 +79,11 @@ spec:
           value: info
 
       # Consul-Template looks in \$HOME/.vault-token, \$VAULT_TOKEN, or -vault-token (via CLI)
+      command: ["/usr/local/bin/consul-template"]
       args:
         [
           "-config=/etc/consul-template/consul-template-config.hcl",
-          "-log-level=\${LOG_LEVEL}",
+          "-log-level=debug",
         ]
 
     # Nginx container
