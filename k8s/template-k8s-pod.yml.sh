@@ -1,83 +1,89 @@
+cat > ${NAMESPACE}/${APP}.yaml << EOL
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: vault-agent-example
+  name: vault-agent-${NAMESPACE}-${APP}
 spec:
-  serviceAccountName: vault-auth
-
+  serviceAccountName: ${APP}
   restartPolicy: Never
-
   volumes:
     - name: vault-token
       emptyDir:
         medium: Memory
-
     - name: config
       configMap:
-        name: example-vault-agent-config
+        name: vault-agent-configs
         items:
-          - key: vault-agent-config.hcl
+          - key: ${NAMESPACE}-${APP}-agent-config.hcl
             path: vault-agent-config.hcl
 
-          - key: consul-template-config-kv-v1.hcl
+          - key: ${NAMESPACE}-${APP}-template-config.hcl
             path: consul-template-config.hcl
-
     - name: shared-data
       emptyDir: {}
 
   containers:
-    # Vault container
+    # Generic container run in the context of vault agent
     - name: vault-agent-auth
-      image: vault
+      image: grovemountain/hashicorp_agent_tools:latest
 
       volumeMounts:
         - name: vault-token
           mountPath: /home/vault
-
         - name: config
           mountPath: /etc/vault
 
       # This assumes Vault running on local host and K8s running in Minikube using VirtualBox
       env:
         - name: VAULT_ADDR
-          value: http://10.0.2.2:8200
-
+          value: ${VAULT_ADDR}
+        - name: VAULT_K8S_AUTH_MOUNT
+          value: kubernetes
+        - name: VAULT_K8S_AUTH_ROLE
+          value: ${NAMESPACE}-${APP}
+        - name: LOG_LEVEL
+          value: info
       # Run the Vault agent
+      command: ["/usr/local/bin/vault"]
       args:
         [
           "agent",
           "-config=/etc/vault/vault-agent-config.hcl",
-          #"-log-level=debug",
+          "-log-level=debug",
         ]
 
-    # Consul Template container
+    # Generic tools container but used in the context of consul template here.   
     - name: consul-template
-      image: hashicorp/consul-template
+      image: grovemountain/hashicorp_agent_tools:latest
       imagePullPolicy: Always
 
       volumeMounts:
         - name: vault-token
           mountPath: /home/vault
-
         - name: config
           mountPath: /etc/consul-template
-
         - name: shared-data
           mountPath: /etc/secrets
 
       env:
         - name: HOME
           value: /home/vault
-
         - name: VAULT_ADDR
-          value: http://10.0.2.2:8200
+          value: ${VAULT_ADDR}
+        - name: VAULT_K8S_AUTH_MOUNT
+          value: kubernetes
+        - name: VAULT_K8S_AUTH_ROLE
+          value: ${NAMESPACE}-${APP}
+        - name: LOG_LEVEL
+          value: info
 
-      # Consul-Template looks in $HOME/.vault-token, $VAULT_TOKEN, or -vault-token (via CLI)
+      # Consul-Template looks in \$HOME/.vault-token, \$VAULT_TOKEN, or -vault-token (via CLI)
+      command: ["/usr/local/bin/consul-template"]
       args:
         [
           "-config=/etc/consul-template/consul-template-config.hcl",
-          #"-log-level=debug",
+          "-log-level=debug",
         ]
 
     # Nginx container
@@ -90,3 +96,4 @@ spec:
       volumeMounts:
         - name: shared-data
           mountPath: /usr/share/nginx/html
+EOL
