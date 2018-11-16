@@ -493,67 +493,23 @@ Prerequisites:
 
 Steps:
 
-- `cd` into the cloned directory of this repo (e.g. `~/dev/vault-agent-guide`)
+- `cd` into the cloned directory of this repo (e.g. `~/dev/vault-agent-guide/k8s`)
 
 - Create K8s Service Account for Vault (TokenReviewer API):
 
     ```
-    kubectl create serviceaccount vault-auth
-    kubectl apply -f - <<EOH
-    ---
-    apiVersion: rbac.authorization.k8s.io/v1beta1
-    kind: ClusterRoleBinding
-    metadata:
-      name: role-tokenreview-binding
-      namespace: default
-    roleRef:
-      apiGroup: rbac.authorization.k8s.io
-      kind: ClusterRole
-      name: system:auth-delegator
-    subjects:
-    - kind: ServiceAccount
-      name: vault-auth
-      namespace: default
-    EOH
+	kubectl create sa vault-auth
+
+	kubectl apply -f vault-auth-cluster-role-binding.yml
     ```
 
-- Create some dummy data and a read-only policy in Vault. Make note of whether you're using the KV v1 or v2 (newer versions of Vault mount `secret/` as a KV v2 secret engine):
-
-    ```
-    # Create read-only policy
-    vault policy write myapp-kv-ro - <<EOH
-    # If using KV v1
-    path "secret/myapp/*" {
-        capabilities = ["read", "list"]
-    }
-
-    # If using KV v2
-    path "secret/data/myapp/*" {
-        capabilities = ["read", "list"]
-    }
-    EOH
-
-    # Write some dummy data
-    vault kv put secret/myapp/config \
-        ttl='30s' \
-        username='appuser' \
-        password='suP3rsec(et!'
-    
-    # Create a local vault user to test out the policy
-    vault auth enable userpass
-
-    vault write auth/userpass/users/test-user \
-        password=foo \
-        policies=myapp-kv-ro
-    
-    vault login -method=userpass \
-        username=test-user \
-        password=foo
-    
-    vault kv get secret/myapp/config
-    ```
 
 - Enable and Configure the K8s Auth Method:
+
+    Note:  K8S_HOST environment variable should point to your actual K8S Host, if running minikube the following will work, but you may need to adjust.   The lazy script is designed to work with minikube, so adjust accordingly.
+    ```
+    export K8S_HOST=$(minikube ip)
+    ```
 
     ```
     # Set Up Vault with K8s Auth backend
@@ -561,7 +517,6 @@ Steps:
     export VAULT_SA_NAME=$(kubectl get sa vault-auth -o jsonpath="{.secrets[*]['name']}")
     export SA_JWT_TOKEN=$(kubectl get secret $VAULT_SA_NAME -o jsonpath="{.data.token}" | base64 --decode; echo)
     export SA_CA_CRT=$(kubectl get secret $VAULT_SA_NAME -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
-    export K8S_HOST=$(minikube ip)
 
     # Enable the K8s auth method at the default path ("auth/kubernetes")
     vault auth enable kubernetes
@@ -580,152 +535,110 @@ Steps:
         ttl=24h
     ```
 
-- Test Service Account creation and JWT retrieval:
+- Setup Kubernetes namespaces and service accounts
 
-    ```
-    kubectl run tmp --rm -i --tty --serviceaccount=vault-auth --image alpine
+   ```
+	kubectl create namespace finance
+	kubectl --namespace=finance create sa ar-app
+	kubectl --namespace=finance create sa ap-app
 
-    apk update
-    apk add curl jq
+	kubectl create namespace it
+	kubectl --namespace=it create sa support
+	kubectl --namespace=it create sa operations
 
-    VAULT_ADDR=http://10.0.2.2:8200
-    curl $VAULT_ADDR/v1/sys/health | jq
+   ```
 
-    KUBE_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+- Configure Vault for the namespaces
 
-    echo $KUBE_TOKEN
+   ```
+	vault policy write finance-ar-app-read finance/ar-app-vault-policy.hcl
+	vault write auth/kubernetes/role/finance-ar-app \
+	bound_service_account_names=ar-app \
+	bound_service_account_namespaces=finance \
+	policies=finance-ar-app-read ttl=24h
 
-    VAULT_K8S_LOGIN=$(curl --request POST --data '{"jwt": "'"$KUBE_TOKEN"'", "role": "example"}' $VAULT_ADDR/v1/auth/kubernetes/login)
+	vault policy write finance-ap-app-read finance/ap-app-vault-policy.hcl
+	vault write auth/kubernetes/role/finance-ap-app \
+	bound_service_account_names=ap-app \
+	bound_service_account_namespaces=finance \
+	policies=finance-ap-app-read     ttl=24h
 
-    echo $VAULT_K8S_LOGIN | jq
-    ```
+	vault policy write it-support-read it/support-vault-policy.hcl
+	vault write auth/kubernetes/role/it-support \
+	bound_service_account_names=support \
+	bound_service_account_namespaces=it \
+	policies=it-support-read     ttl=24h
 
-- Create ConfigMaps:
+	vault policy write it-operations-read it/operations-vault-policy.hcl
+	vault write auth/kubernetes/role/it-operations \
+	bound_service_account_names=operations \
+	bound_service_account_namespaces=it \
+	policies=it-operations-read     ttl=24h
+   ```
 
-    ```
-    # Create Config Map from "configs-k8s" directory
-    kubectl create configmap example-vault-agent-config --from-file=k8s/configs-k8s/
-    kubectl get configmap example-vault-agent-config -o yaml
-    ```
+- Create secrets in Vault
+   ```
+	vault kv put secret/it/operations/config \
+	ttl='30s' username='operations' \
+	password='operations-suP3rsec(et!'
 
-- Example Pod spec (example.yml):
+	vault kv put secret/it/support/config \
+	ttl='30s' username='support' \
+	password='support-suP3rsec(et!'
 
-    ```yaml
-    ---
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: vault-agent-example
-    spec:
-      serviceAccountName: vault-auth
+	vault kv put secret/finance/ar-app/config \
+	ttl='30s' username='ar-app' \
+	password='ar-app-suP3rsec(et!'
 
-      restartPolicy: Never
+	vault kv put secret/finance/ap-app/config \
+	ttl='30s' username='ap-app' \
+	password='ap-app-suP3rsec(et!'
+   ```
 
-      volumes:
-        - name: vault-token
-          emptyDir:
-            medium: Memory
+- Inspect the service account to get its secrets also grab into an environment variable for later use
+   ```
+	kubectl --namespace=it get sa support -o yaml
+	export SECRET_NAME=$(kubectl --namespace=${NAMESPACE} get sa support -o jsonpath="{.secrets[0]['name']}")
+	kubectl --namespace=it get secret ${SECRET_NAME} -o yaml
+   ```
 
-        - name: config
-          configMap:
-            name: example-vault-agent-config
-            items:
-              - key: vault-agent-config.hcl
-                path: vault-agent-config.hcl
+- Create pods.  It's important to set the environment variables as they're used in creating the templates for the pod definitions
 
-              - key: consul-template-config-kv-v1.hcl
-                path: consul-template-config.hcl
+   ```
+	export NAMESPACE=it
+	kubectl --namespace=it create configmap vault-agent-configs --from-file=configs-k8s/
 
-        - name: shared-data
-          emptyDir: {}
+	export APP=operations
+	./template-k8s-pod.yml.sh
+	kubectl --namespace=it apply -f it/operations.yaml
 
-      containers:
-        # Vault container
-        - name: vault-agent-auth
-          image: vault
+	export APP=support
+	./template-k8s-pod.yml.sh
+	kubectl --namespace=it apply -f it/support.yaml
+	
+	export NAMESPACE=finance
+	kubectl --namespace=finance create configmap vault-agent-configs --from-file=configs-k8s/
 
-          volumeMounts:
-            - name: vault-token
-              mountPath: /home/vault
+	export APP=ar-app
+	./template-k8s-pod.yml.sh
+	kubectl --namespace=finance apply -f finance/ar-app.yaml
 
-            - name: config
-              mountPath: /etc/vault
+	export APP=ap-app	
+	./template-k8s-pod.yml.sh
+	kubectl --namespace=finance apply -f finance/ap-app.yaml
+   ```
 
-          # This assumes Vault running on local host and K8s running in Minikube using VirtualBox
-          env:
-            - name: VAULT_ADDR
-              value: http://10.0.2.2:8200
+- You can now test connectivity to the applications by doing port forwarding to your pods.   
 
-          # Run the Vault agent
-          args:
-            [
-              "agent",
-              "-config=/etc/vault/vault-agent-config.hcl",
-              #"-log-level=debug",
-            ]
+   In one window:
+   ```
+	kubectl --namespace=it port-forward pod/vault-agent-it-operations 8080:80
+   ```
 
-        # Consul Template container
-        - name: consul-template
-          image: hashicorp/consul-template
-          imagePullPolicy: Always
-
-          volumeMounts:
-            - name: vault-token
-              mountPath: /home/vault
-
-            - name: config
-              mountPath: /etc/consul-template
-
-            - name: shared-data
-              mountPath: /etc/secrets
-
-          env:
-            - name: HOME
-              value: /home/vault
-
-            - name: VAULT_ADDR
-              value: http://10.0.2.2:8200
-
-          # Consul-Template looks in $HOME/.vault-token, $VAULT_TOKEN, or -vault-token (via CLI)
-          args:
-            [
-              "-config=/etc/consul-template/consul-template-config.hcl",
-              #"-log-level=debug",
-            ]
-
-        # Nginx container
-        - name: nginx-container
-          image: nginx
-
-          ports:
-            - containerPort: 80
-
-          volumeMounts:
-            - name: shared-data
-              mountPath: /usr/share/nginx/html
-    ```
-
-- Create/test Pod:
-
-    ```
-    # Check which KV version the `secret/` path is using:
-    vault secrets list -detailed
-
-    # Example output:
-    Path        Type        ...        Options
-    ----        ----                   -------
-    ...
-    secret/     kv                     map[version:2]
-    ...
-
-    # Create the Pod (make sure to use the right example.yml file based on your KV secret engine version)
-    kubectl apply -f k8s/[example-kv-v1.yml | example-kv-v2.yml] --record
-    
-    # Port-forward so we can view from browser
-    kubectl port-forward pod/vault-agent-example 8080:80
-
-    # In a browser, go to `localhost:8080`
-    ```
+   In another window or browser connect to http://localhost:8080
+   ```
+	curl -s http://localhost:8080
+   ```
 
 
 ## [WIP] OpenShift: Pod Auto-Auth Using the Kubernetes Auth Method
