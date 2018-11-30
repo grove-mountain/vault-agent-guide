@@ -1,0 +1,13 @@
+# Used for local vault servers typically.
+# Mainly used for demo purposes.  Definitely DO NOT USE IN PRODUCTION
+
+export IP_ADDR=$(ipconfig getifaddr en0)
+export LOG_LEVEL=${LOG_LEVEL:-info}
+export VAULT_TOKEN=${VAULT_TOKEN:-"ultra-secure"}
+export VAULT_ADDR=http://${IP_ADDR}:8200
+
+alias vault_dev="VAULT_UI=true \
+VAULT_DEV_ROOT_TOKEN_ID=${VAULT_TOKEN} \
+VAULT_REDIRECT_ADDR=${VAULT_ADDR} \
+VAULT_DEV_LISTEN_ADDRESS=${IP_ADDR}:8200 \
+vault server -log-level=${LOG_LEVEL} -dev"

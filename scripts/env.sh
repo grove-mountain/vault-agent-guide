@@ -18,4 +18,6 @@ fi
 
 . ${DIR}/demo-magic.sh -d -p -w ${DEMO_WAIT}
 
-. ~/.vault_env
+# I store by vault env here, but most people probably don't have it
+. ~/.vault_env &> /dev/null
+
