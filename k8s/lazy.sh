@@ -1,14 +1,7 @@
 . ../scripts/env.sh
 
 yellow "This assumes you already have a working copy of Kubernetes"
-green "In another terminal window:"
-green "Start Vault from the scripts directory"
-green "../scripts/0_launch_vault.sh"
-green "Unseal vault with:"
-green "../scripts/1_init_unseal_vault.sh"
-
-green "Sourcing Vault root token "
-pe ". ../scripts/root_token"
+yellow "This assumes you already have a working copy of Vault with \$VAULT_ADDR and \$VAULT_TOKEN defined"
 
 # Allows you to use an environment variable for k8s namespaces
 #green "Creating shortcut for kubectl with namespace identifier"
@@ -22,30 +15,34 @@ pe "kubectl apply -f vault-auth-cluster-role-binding.yml"
 
 green "Grabbing all the data needed to configure the kubernetes auth method to connect to K8s"
 # Assuming the first secret is the one we want to use
-cat << EOL
 export VAULT_SA_SECRET_NAME=$(kubectl get sa vault-auth -o jsonpath="{.secrets[0]['name']}")
 export SA_JWT_TOKEN=$(kubectl get secret $VAULT_SA_SECRET_NAME -o jsonpath="{.data.token}" | base64 --decode; echo)
 export SA_CA_CRT=$(kubectl get secret $VAULT_SA_SECRET_NAME -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
 export K8S_HOST=$(minikube ip)
-EOL
 
-export VAULT_SA_SECRET_NAME=$(kubectl get sa vault-auth -o jsonpath="{.secrets[0]['name']}")
-export SA_JWT_TOKEN=$(kubectl get secret $VAULT_SA_SECRET_NAME -o jsonpath="{.data.token}" | base64 --decode; echo)
-export SA_CA_CRT=$(kubectl get secret $VAULT_SA_SECRET_NAME -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
-export K8S_HOST=$(minikube ip)
+cat << EOL
+export K8S_HOST=${K8S_HOST}
+
+export VAULT_SA_SECRET_NAME=${VAULT_SA_SECRET_NAME}
+
+export SA_JWT_TOKEN=${SA_JWT_TOKEN}
+
+export SA_CA_CRT=${SA_CA_CRT}
+EOL
+pe
 
 green "Enabling and configuring the K8s auth method in Vault"
 pe "vault auth enable kubernetes"
 cat << EOL
-vault write auth/kubernetes/config \
-    token_reviewer_jwt="$SA_JWT_TOKEN" \
-    kubernetes_host="https://$K8S_HOST:8443" \
+vault write auth/kubernetes/config
+    kubernetes_host="https://$K8S_HOST:8443"
+    token_reviewer_jwt="$SA_JWT_TOKEN"
     kubernetes_ca_cert="$SA_CA_CRT"
 EOL
 
 vault write auth/kubernetes/config \
-    token_reviewer_jwt="$SA_JWT_TOKEN" \
     kubernetes_host="https://$K8S_HOST:8443" \
+    token_reviewer_jwt="$SA_JWT_TOKEN" \
     kubernetes_ca_cert="$SA_CA_CRT"
 
 green "Configuring finance namespace in K8s"
@@ -66,6 +63,7 @@ vault write auth/kubernetes/role/finance-ar-app \
     policies=finance-ar-app-read \
     ttl=24h
 EOL
+pe
 
 vault write auth/kubernetes/role/finance-ar-app \
     bound_service_account_names=ar-app \
@@ -82,6 +80,7 @@ vault write auth/kubernetes/role/finance-ap-app \
     policies=finance-ap-app-read \
     ttl=24h
 EOL
+pe
 
 vault write auth/kubernetes/role/finance-ap-app \
     bound_service_account_names=ap-app \
@@ -106,6 +105,7 @@ vault write auth/kubernetes/role/it-support \
     policies=it-support-read \
     ttl=24h
 EOL
+pe
 
 vault write auth/kubernetes/role/it-support \
     bound_service_account_names=support \
@@ -122,6 +122,7 @@ vault write auth/kubernetes/role/it-operations \
     policies=it-operations-read \
     ttl=24h
 EOL
+pe
 
 vault write auth/kubernetes/role/it-operations \
     bound_service_account_names=operations \
@@ -182,6 +183,7 @@ Then connect to your browser at http://localhost:${FORWARD_PORT}
 OR
 curl -s http://localhost:${FORWARD_PORT}
 EOL
+pe
 
 
 pe "export APP=support"
@@ -199,6 +201,7 @@ Then connect to your browser at http://localhost:${FORWARD_PORT}
 OR
 curl -s http://localhost:${FORWARD_PORT}
 EOL
+pe
 
 
 pe "export NAMESPACE=finance"
@@ -219,6 +222,7 @@ Then connect to your browser at http://localhost:${FORWARD_PORT}
 OR
 curl -s http://localhost:${FORWARD_PORT}
 EOL
+pe
 
 
 
@@ -237,6 +241,7 @@ Then connect to your browser at http://localhost:${FORWARD_PORT}
 OR
 curl -s http://localhost:${FORWARD_PORT}
 EOL
+pe
 
 green "Welcome to the wonderful world of using Vault Agent with Kubernetes!"
 green "If you're Kubernetes aware, feel free to poke around your systems to see any other behaviors you find interesting"
