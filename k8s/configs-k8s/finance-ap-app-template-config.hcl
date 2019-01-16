@@ -11,7 +11,7 @@ template {
   <html>
   <body>
   <p>Finance AP-App secrets:</p>
-  {{- with secret "secret/finance/ap-app/config" }}
+  {{- with secret "k8s-secret/finance/ap-app/config" }}
   <ul>
   <li><pre>username: {{ .Data.username }}</pre></li>
   <li><pre>password: {{ .Data.password }}</pre></li>
