@@ -11,7 +11,7 @@ template {
   <html>
   <body>
   <p>IT Support secrets:</p>
-  {{- with secret "secret/it/support/config" }}
+  {{- with secret "k8s-secret/it/support/config" }}
   <ul>
   <li><pre>username: {{ .Data.username }}</pre></li>
   <li><pre>password: {{ .Data.password }}</pre></li>

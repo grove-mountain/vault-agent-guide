@@ -39,6 +39,7 @@ vault write auth/kubernetes/config
     token_reviewer_jwt="$SA_JWT_TOKEN"
     kubernetes_ca_cert="$SA_CA_CRT"
 EOL
+p
 
 vault write auth/kubernetes/config \
     kubernetes_host="https://$K8S_HOST:8443" \
@@ -63,7 +64,7 @@ vault write auth/kubernetes/role/finance-ar-app \
     policies=finance-ar-app-read \
     ttl=24h
 EOL
-pe
+p
 
 vault write auth/kubernetes/role/finance-ar-app \
     bound_service_account_names=ar-app \
@@ -80,7 +81,7 @@ vault write auth/kubernetes/role/finance-ap-app \
     policies=finance-ap-app-read \
     ttl=24h
 EOL
-pe
+p
 
 vault write auth/kubernetes/role/finance-ap-app \
     bound_service_account_names=ap-app \
@@ -105,7 +106,7 @@ vault write auth/kubernetes/role/it-support \
     policies=it-support-read \
     ttl=24h
 EOL
-pe
+p
 
 vault write auth/kubernetes/role/it-support \
     bound_service_account_names=support \
@@ -122,7 +123,7 @@ vault write auth/kubernetes/role/it-operations \
     policies=it-operations-read \
     ttl=24h
 EOL
-pe
+p
 
 vault write auth/kubernetes/role/it-operations \
     bound_service_account_names=operations \
@@ -130,23 +131,24 @@ vault write auth/kubernetes/role/it-operations \
     policies=it-operations-read \
     ttl=24h
 
+vault secrets enable -path k8s-secret -version 1 kv
 green "Putting applications secrets into Vault"
-pe "vault kv put secret/it/operations/config \
+pe "vault kv put k8s-secret/it/operations/config \
     ttl='30s' \
     username='operations' \
     password='operations-suP3rsec(et!'"
 
-pe "vault kv put secret/it/support/config \
+pe "vault kv put k8s-secret/it/support/config \
     ttl='30s' \
     username='support' \
     password='support-suP3rsec(et!'"
 
-pe "vault kv put secret/finance/ar-app/config \
+pe "vault kv put k8s-secret/finance/ar-app/config \
     ttl='30s' \
     username='ar-app' \
     password='ar-app-suP3rsec(et!'"
 
-pe "vault kv put secret/finance/ap-app/config \
+pe "vault kv put k8s-secret/finance/ap-app/config \
     ttl='30s' \
     username='ap-app' \
     password='ap-app-suP3rsec(et!'"
@@ -246,4 +248,3 @@ pe
 green "Welcome to the wonderful world of using Vault Agent with Kubernetes!"
 green "If you're Kubernetes aware, feel free to poke around your systems to see any other behaviors you find interesting"
 green "Try things like trying to get secrets from inside one pod from other namespace/service account combinations!"
-
