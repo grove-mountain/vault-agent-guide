@@ -486,12 +486,24 @@ Many applications that expect Vault tokens typically look for a `VAULT_TOKEN` en
 K8s Auth Workflow:
 ![K8s Auth Workflow](images/vault-k8s-auth-workflow.png)
 
-Prerequisites:
+### Prerequisites
 
 - A running Kubernetes environment with `kubectl` configured to talk to it. I'm using [Minikube](https://kubernetes.io/docs/setup/minikube/) for these examples. You can also check out [this](https://github.com/sethvargo/vault-kubernetes-workshop) workshop repo for running Vault on GKE
 -  A running Vault environment that is reachable from your K8s environment (set your `VAULT_ADDR` env var to point to it)
 
-Steps:
+
+### Automated/Demo mode
+
+All the manual steps below are contained in the `run_demo.sh` command included in the k8s directory.  Change to k8s dir and run it. (Sorry windows users, PRs are welcome).   
+
+This uses demo-magic which just requires you to hit return in order to progress though the various commands.   
+
+```
+cd k8s
+./run_demo.sh
+```
+
+### Manual Steps
 
 - `cd` into the cloned directory of this repo (e.g. `~/dev/vault-agent-guide/k8s`)
 
