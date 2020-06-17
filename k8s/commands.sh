@@ -120,7 +120,7 @@ export APP=support
 kctl apply -f ${NAMESPACE}/${APP}.yaml
 
 export NAMESPACE=finance
-kctl create configmap vault-agent-configs --from-file=onfigs-k8s/
+kctl create configmap vault-agent-configs --from-file=configs-k8s/
 
 export APP=ar-app
 ./template-k8s-pod.yml.sh
